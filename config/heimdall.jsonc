@@ -1,0 +1,23 @@
+{
+  "cameras_dir": "config/cameras",
+  "infer_config": "config/infer_yolo26n.txt",
+
+  "threat": {
+    "min_confidence": 0.4,
+    "class_ids": [],
+    "merge_radius": 0.4,
+    "min_range": 0.3,
+    "max_range": 8.0
+  },
+
+  // NetworkTables. The roboRIO is the server; Heimdall is a client.
+  // Leave "server" empty to use 10.TE.AM.2 from the team number.
+  // For a bench test with mock_robot, set server to "127.0.0.1".
+  "nt": {
+    "team": 6238,
+    "server": "",
+    "port": 5810,
+    "identity": "heimdall",
+    "table": "heimdall"
+  }
+}

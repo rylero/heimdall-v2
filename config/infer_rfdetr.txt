@@ -1,0 +1,23 @@
+[property]
+gpu-id=0
+# ImageNet normalization: output = (input - offset) * scale
+# mean=[123.675, 116.28, 103.53]  std≈57.63 (avg of 58.395, 57.12, 57.375)
+net-scale-factor=0.017352074816046
+offsets=123.675;116.28;103.53
+onnx-file=/app/models/rfdetr_nano_480.onnx
+model-engine-file=/app/models/rfdetr_nano_480.onnx_b1_gpu0_fp16.engine
+labelfile-path=/app/models/labels.txt
+infer-dims=3;480;480
+batch-size=1
+network-mode=2
+num-detected-classes=1
+interval=0
+gie-unique-id=1
+network-type=0
+parse-bbox-func-name=NvDsInferParseCustomRFDetr
+custom-lib-path=/app/build/src/models/bbox_parser/librfdetr_parser.so
+
+[class-attrs-all]
+# Minimum confidence to emit a detection (0.0–1.0)
+pre-cluster-threshold=0.5
+nms-iou-threshold=0.45
