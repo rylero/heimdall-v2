@@ -1,8 +1,9 @@
 package com.heimdall;
 
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.networktables.BooleanSubscriber;
+import edu.wpi.first.networktables.DoubleArraySubscriber;
 import edu.wpi.first.networktables.DoublePublisher;
-import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 
@@ -11,18 +12,16 @@ import edu.wpi.first.networktables.NetworkTableInstance;
  *
  * periodic():
  *   heimdall.sendPose(pose.getX(), pose.getY(), pose.getRotation().getRadians());
- *   if (heimdall.hasThreat()) {
- *       drive.drive(heimdall.fleeX() * maxSpeed, heimdall.fleeY() * maxSpeed, 0.0);
+ *   for (Translation2d other : heimdall.robots()) {
+ *       // field-relative positions of other robots, meters
  *   }
  */
 public final class Heimdall implements AutoCloseable {
     private final DoublePublisher poseX;
     private final DoublePublisher poseY;
     private final DoublePublisher poseHeading;
-    private final BooleanSubscriber hasThreat;
-    private final DoubleSubscriber fleeX;
-    private final DoubleSubscriber fleeY;
-    private final DoubleSubscriber nearestRange;
+    private final DoubleArraySubscriber robotsX;
+    private final DoubleArraySubscriber robotsY;
     private final BooleanSubscriber healthy;
 
     public Heimdall() {
@@ -30,10 +29,8 @@ public final class Heimdall implements AutoCloseable {
         poseX = t.getDoubleTopic("pose/x").publish();
         poseY = t.getDoubleTopic("pose/y").publish();
         poseHeading = t.getDoubleTopic("pose/heading").publish();
-        hasThreat = t.getBooleanTopic("hasThreat").subscribe(false);
-        fleeX = t.getDoubleTopic("fleeX").subscribe(0.0);
-        fleeY = t.getDoubleTopic("fleeY").subscribe(0.0);
-        nearestRange = t.getDoubleTopic("nearestRange").subscribe(0.0);
+        robotsX = t.getDoubleArrayTopic("robots/x").subscribe(new double[] {});
+        robotsY = t.getDoubleArrayTopic("robots/y").subscribe(new double[] {});
         healthy = t.getBooleanTopic("healthy").subscribe(false);
     }
 
@@ -43,20 +40,19 @@ public final class Heimdall implements AutoCloseable {
         poseHeading.set(headingRad);
     }
 
-    public boolean hasThreat() {
-        return healthy.get() && hasThreat.get();
-    }
-
-    public double fleeX() {
-        return fleeX.get();
-    }
-
-    public double fleeY() {
-        return fleeY.get();
-    }
-
-    public double nearestRange() {
-        return nearestRange.get();
+    /** Field-relative positions (meters) of other robots currently in view. Empty if none. */
+    public Translation2d[] robots() {
+        if (!healthy.get()) {
+            return new Translation2d[0];
+        }
+        double[] xs = robotsX.get();
+        double[] ys = robotsY.get();
+        int n = Math.min(xs.length, ys.length);
+        Translation2d[] out = new Translation2d[n];
+        for (int i = 0; i < n; i++) {
+            out[i] = new Translation2d(xs[i], ys[i]);
+        }
+        return out;
     }
 
     public boolean isHealthy() {
@@ -68,10 +64,8 @@ public final class Heimdall implements AutoCloseable {
         poseX.close();
         poseY.close();
         poseHeading.close();
-        hasThreat.close();
-        fleeX.close();
-        fleeY.close();
-        nearestRange.close();
+        robotsX.close();
+        robotsY.close();
         healthy.close();
     }
 }

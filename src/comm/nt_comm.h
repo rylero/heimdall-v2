@@ -2,8 +2,8 @@
 #include "app/threat_output.h"
 #include "pose/camera_params.h"
 #include <networktables/BooleanTopic.h>
+#include <networktables/DoubleArrayTopic.h>
 #include <networktables/DoubleTopic.h>
-#include <networktables/IntegerTopic.h>
 #include <networktables/NetworkTableInstance.h>
 #include <cstdint>
 #include <optional>
@@ -14,7 +14,8 @@
 // Robot publishes:
 //   heimdall/pose/x, heimdall/pose/y, heimdall/pose/heading
 // Jetson publishes:
-//   heimdall/hasThreat, fleeX, fleeY, nearestRange, healthy, threatCount
+//   heimdall/robots/x, heimdall/robots/y  (parallel double arrays, field m)
+//   heimdall/healthy
 class NtComm : public ThreatOutput {
 public:
     struct Config {
@@ -36,11 +37,8 @@ private:
     nt::DoubleSubscriber       pose_x_;
     nt::DoubleSubscriber       pose_y_;
     nt::DoubleSubscriber       pose_heading_;
-    nt::BooleanPublisher       has_threat_;
-    nt::DoublePublisher        flee_x_;
-    nt::DoublePublisher        flee_y_;
-    nt::DoublePublisher        nearest_range_;
+    nt::DoubleArrayPublisher   robots_x_;
+    nt::DoubleArrayPublisher   robots_y_;
     nt::BooleanPublisher       healthy_;
-    nt::IntegerPublisher       threat_count_;
     int64_t                    last_pose_change_us_ = 0;
 };

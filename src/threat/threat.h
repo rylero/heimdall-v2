@@ -29,21 +29,15 @@ struct ThreatConfig {
     float            max_range      = 8.0f;
 };
 
-// Per-frame output published to the robot. flee_x/flee_y is a unit vector in the
-// robot frame pointing *away* from the nearest threat. Drive that chassis
-// translation to run the other way. Zero when has_threat is false.
+// Per-frame output published to the robot: the list of other robots in view.
 struct ThreatFrame {
-    uint64_t           timestamp_ns  = 0;
-    bool               healthy       = true;
-    bool               has_threat    = false;
-    float              nearest_range = 0;
-    float              flee_x        = 0;
-    float              flee_y        = 0;
+    uint64_t            timestamp_ns = 0;
+    bool                healthy      = true;
     std::vector<Threat> threats;
 };
 
-// Pure: field detections + our pose → threat list + flee vector.
-// No tracking, no Kalman, no history.
+// Pure: field detections + our pose → threat list.
+// No tracking, no Kalman, no history, no flee vector.
 ThreatFrame select_threats(
     const std::vector<FieldDetection>& field_dets,
     const RobotPose&                   pose,

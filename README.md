@@ -1,6 +1,6 @@
 # Heimdall v2
 
-Jetson **Orin Nano** vision for one job: **if another robot is in view, tell ours to drive the other way.**
+Jetson **Orin Nano** vision for one job: **see other robots and publish their field positions.**
 
 Build and run **on the Jetson**. DeepStream is the proven v1 stack. This repo drops JPDAF, ZMQ, and protobuf. The rio already runs NetworkTables; Heimdall is just another NT client.
 
@@ -11,9 +11,9 @@ Camera(s) → DeepStream (nvinfer) → detections
                                       ↓
                                 select_threats
                                       ↓
-                                NT /heimdall/hasThreat, fleeX, fleeY
+                                NT /heimdall/robots/{x,y}
                                       ↓
-                                Robot: if hasThreat, drive (fleeX, fleeY)
+                                Robot: Translation2d[] others = heimdall.robots()
 ```
 
 ## NetworkTables (`/heimdall`)
@@ -30,24 +30,24 @@ Jetson **publishes**:
 
 | Topic | Type |
 |---|---|
-| `hasThreat` | bool |
-| `fleeX` / `fleeY` | double, unit vector, robot frame (+X forward, +Y left) |
-| `nearestRange` | double, meters |
+| `robots/x` | double[], field m — one entry per other robot |
+| `robots/y` | double[], field m — parallel to `robots/x` |
 | `healthy` | bool |
-| `threatCount` | int |
+
+A frame with no detections publishes empty arrays. Array length is the robot count.
 
 Copy `rio/Heimdall.java` into the robot project (WPILib only, no extra vendordep):
 
 ```java
 heimdall.sendPose(pose.getX(), pose.getY(), pose.getRotation().getRadians());
-if (heimdall.hasThreat()) {
-    drive.drive(heimdall.fleeX() * maxSpeed, heimdall.fleeY() * maxSpeed, 0.0);
+for (Translation2d other : heimdall.robots()) {
+    // field-relative meters
 }
 ```
 
 Set `nt.team` in `config/heimdall.jsonc` (default 6238 → `10.62.38.2`). Leave `nt.server` empty unless you need an override (e.g. `"127.0.0.1"` with `mock_robot`).
 
-There is no track history. A frame with no detections means `hasThreat == false`.
+There is no track history. A frame with no detections means `robots()` is empty.
 
 ## Jetson notes (Orin Nano)
 

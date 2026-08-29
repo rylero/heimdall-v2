@@ -73,17 +73,5 @@ ThreatFrame select_threats(
     }
 
     out.threats = std::move(candidates);
-    if (out.threats.empty()) return out;
-
-    const auto nearest = std::min_element(
-        out.threats.begin(), out.threats.end(),
-        [](const Threat& a, const Threat& b) { return a.range < b.range; });
-
-    out.has_threat    = true;
-    out.nearest_range = nearest->range;
-    if (nearest->range > 0.f) {
-        out.flee_x = -nearest->robot_x / nearest->range;
-        out.flee_y = -nearest->robot_y / nearest->range;
-    }
     return out;
 }

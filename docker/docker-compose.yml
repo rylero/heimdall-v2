@@ -1,13 +1,17 @@
 # Jetson Orin Nano only. Build and run on the device:
 #   cd docker && docker compose build && docker compose up
+name: heimdallv2
 services:
   heimdall:
+    container_name: heimdall
     build:
       context: ..
       dockerfile: docker/Dockerfile
     runtime: nvidia
     privileged: true
     restart: unless-stopped
+    depends_on:
+      - mediamtx
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0-host
@@ -18,15 +22,38 @@ services:
       - ../config:/app/config
       - heimdall-data:/app/data
       - ../logs:/app/logs
+      # Host /dev so /dev/v4l/by-id USB camera symlinks exist in the container.
+      - /dev:/dev
       # Host GStreamer plugins + x264: Nano has no NVENC, so the debug encode
       # path uses x264enc (same mount as v1).
       - /usr/lib/aarch64-linux-gnu/gstreamer-1.0:/usr/local/lib/gstreamer-1.0-host:ro
       - /usr/lib/aarch64-linux-gnu/libx264.so.163:/usr/lib/aarch64-linux-gnu/libx264.so.163:ro
     network_mode: host
 
+  heimdall-web:
+    container_name: heimdall-web
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    network_mode: host
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - HEIMDALL_CONFIG_DIR=/app/config
+      - HEIMDALL_LOGS_DIR=/app/logs
+      - HEIMDALL_CONTAINER=heimdall
+    volumes:
+      - ../config:/app/config
+      - ../logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /dev:/dev
+    # http://<jetson-ip>:8080
+
   # Debug preview. Pipeline RTMPs to :1935; watch at rtsp://<jetson>:8554/live/ds-test
+  # Web UI preview uses WebRTC/WHEP at :8889 (HLS cookie check on :8888 breaks over HTTP).
   # Detection does not depend on this — rtmp_sink errors are non-fatal.
   mediamtx:
+    container_name: mediamtx
     image: bluenviron/mediamtx:latest
     network_mode: host
     restart: unless-stopped

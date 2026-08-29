@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # Build on the Jetson Orin Nano (linux/arm64). Do not cross-build from a laptop.
 FROM nvcr.io/nvidia/deepstream-l4t:7.0-triton-multiarch
 

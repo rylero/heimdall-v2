@@ -9,9 +9,10 @@ namespace fs = std::filesystem;
 using json   = nlohmann::json;
 
 static CameraType parse_type(const std::string& s) {
-    if (s == "usb") return CameraType::USB;
-    if (s == "csi") return CameraType::CSI;
-    throw std::runtime_error("unknown camera type '" + s + "' (expected usb or csi)");
+    if (s == "usb")  return CameraType::USB;
+    if (s == "csi")  return CameraType::CSI;
+    if (s == "test") return CameraType::TEST;
+    throw std::runtime_error("unknown camera type '" + s + "' (expected usb, csi, or test)");
 }
 
 CameraLoadResult load_camera_configs(const std::string& dir) {

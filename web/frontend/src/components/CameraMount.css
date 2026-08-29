@@ -1,0 +1,24 @@
+.camera-mount { margin-bottom: 14px; }
+.camera-mount-canvas {
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0a0c12;
+  border: 1px solid var(--border);
+}
+.camera-mount-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.camera-mount-legend span { display: flex; align-items: center; gap: 6px; }
+.camera-mount-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.camera-mount-hint { margin-left: auto; font-family: monospace; }

@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdio>
 #include <utility>
+#include <vector>
 
 NtComm::NtComm(Config config)
     : config_(std::move(config)),
@@ -27,15 +28,13 @@ NtComm::NtComm(Config config)
     pose_y_       = table->GetDoubleTopic("pose/y").Subscribe(0.0);
     pose_heading_ = table->GetDoubleTopic("pose/heading").Subscribe(0.0);
 
-    has_threat_     = table->GetBooleanTopic("hasThreat").Publish();
-    flee_x_         = table->GetDoubleTopic("fleeX").Publish();
-    flee_y_         = table->GetDoubleTopic("fleeY").Publish();
-    nearest_range_  = table->GetDoubleTopic("nearestRange").Publish();
-    healthy_        = table->GetBooleanTopic("healthy").Publish();
-    threat_count_   = table->GetIntegerTopic("threatCount").Publish();
+    robots_x_ = table->GetDoubleArrayTopic("robots/x").Publish();
+    robots_y_ = table->GetDoubleArrayTopic("robots/y").Publish();
+    healthy_  = table->GetBooleanTopic("healthy").Publish();
 
     healthy_.Set(false);
-    has_threat_.Set(false);
+    robots_x_.Set(std::vector<double>{});
+    robots_y_.Set(std::vector<double>{});
     inst_.Flush();
 }
 
@@ -58,11 +57,15 @@ std::optional<TimestampedPose> NtComm::try_recv_pose() {
 }
 
 void NtComm::send_threat_frame(const ThreatFrame& frame) {
-    has_threat_.Set(frame.has_threat);
-    flee_x_.Set(frame.flee_x);
-    flee_y_.Set(frame.flee_y);
-    nearest_range_.Set(frame.nearest_range);
+    std::vector<double> xs, ys;
+    xs.reserve(frame.threats.size());
+    ys.reserve(frame.threats.size());
+    for (const auto& t : frame.threats) {
+        xs.push_back(t.field_x);
+        ys.push_back(t.field_y);
+    }
+    robots_x_.Set(xs);
+    robots_y_.Set(ys);
     healthy_.Set(frame.healthy);
-    threat_count_.Set(static_cast<int64_t>(frame.threats.size()));
     inst_.Flush();
 }

@@ -11,56 +11,40 @@ static FieldDetection fd(int class_id, float x, float y, float conf = 0.9f) {
     return {class_id, x, y, conf};
 }
 
-TEST_CASE("empty detections produce no threat", "[threat]") {
+TEST_CASE("empty detections produce no robots", "[threat]") {
     RobotPose pose{0.f, 0.f, 0.f};
     auto frame = select_threats({}, pose, {});
-    REQUIRE_FALSE(frame.has_threat);
     REQUIRE(frame.threats.empty());
-    REQUIRE_THAT(frame.flee_x, WithinAbs(0.f, 1e-6f));
-    REQUIRE_THAT(frame.flee_y, WithinAbs(0.f, 1e-6f));
 }
 
-TEST_CASE("robot in front of us flees backward", "[threat]") {
-    // Us at origin heading +X. Other robot 2 m ahead on field +X.
+TEST_CASE("robot in front is +X in the robot frame", "[threat]") {
     RobotPose pose{0.f, 0.f, 0.f};
     auto frame = select_threats({fd(0, 2.f, 0.f)}, pose, {});
-    REQUIRE(frame.has_threat);
     REQUIRE(frame.threats.size() == 1);
-    REQUIRE_THAT(frame.nearest_range, WithinAbs(2.f, 1e-4f));
+    REQUIRE_THAT(frame.threats[0].field_x, WithinAbs(2.f, 1e-4f));
+    REQUIRE_THAT(frame.threats[0].field_y, WithinAbs(0.f, 1e-4f));
     REQUIRE_THAT(frame.threats[0].robot_x, WithinAbs(2.f, 1e-4f));
     REQUIRE_THAT(frame.threats[0].robot_y, WithinAbs(0.f, 1e-4f));
-    REQUIRE_THAT(frame.flee_x, WithinAbs(-1.f, 1e-4f));
-    REQUIRE_THAT(frame.flee_y, WithinAbs(0.f,  1e-4f));
 }
 
-TEST_CASE("robot to the left flees right", "[threat]") {
+TEST_CASE("robot to the left is +Y in the robot frame", "[threat]") {
     RobotPose pose{0.f, 0.f, 0.f};
     auto frame = select_threats({fd(0, 0.f, 3.f)}, pose, {});
-    REQUIRE(frame.has_threat);
     REQUIRE_THAT(frame.threats[0].robot_x, WithinAbs(0.f, 1e-4f));
     REQUIRE_THAT(frame.threats[0].robot_y, WithinAbs(3.f, 1e-4f));
-    REQUIRE_THAT(frame.flee_x, WithinAbs(0.f,  1e-4f));
-    REQUIRE_THAT(frame.flee_y, WithinAbs(-1.f, 1e-4f));
 }
 
 TEST_CASE("heading rotates field detections into robot frame", "[threat]") {
-    // Facing +Y (pi/2). A field point 2 m along +Y is in front of us.
     RobotPose pose{0.f, 0.f, static_cast<float>(M_PI / 2)};
     auto frame = select_threats({fd(0, 0.f, 2.f)}, pose, {});
-    REQUIRE(frame.has_threat);
     REQUIRE_THAT(frame.threats[0].robot_x, WithinAbs(2.f, 1e-4f));
     REQUIRE_THAT(frame.threats[0].robot_y, WithinAbs(0.f, 1e-4f));
-    REQUIRE_THAT(frame.flee_x, WithinAbs(-1.f, 1e-4f));
 }
 
-TEST_CASE("nearest threat wins the flee vector", "[threat]") {
+TEST_CASE("two robots stay as two positions", "[threat]") {
     RobotPose pose{0.f, 0.f, 0.f};
     auto frame = select_threats({fd(0, 4.f, 0.f), fd(0, 0.f, 1.5f)}, pose, {});
-    REQUIRE(frame.has_threat);
     REQUIRE(frame.threats.size() == 2);
-    REQUIRE_THAT(frame.nearest_range, WithinAbs(1.5f, 1e-4f));
-    REQUIRE_THAT(frame.flee_y, WithinAbs(-1.f, 1e-4f));
-    REQUIRE_THAT(frame.flee_x, WithinAbs(0.f,  1e-4f));
 }
 
 TEST_CASE("low confidence detections are dropped", "[threat]") {
@@ -68,7 +52,7 @@ TEST_CASE("low confidence detections are dropped", "[threat]") {
     ThreatConfig cfg;
     cfg.min_confidence = 0.5f;
     auto frame = select_threats({fd(0, 2.f, 0.f, 0.2f)}, pose, cfg);
-    REQUIRE_FALSE(frame.has_threat);
+    REQUIRE(frame.threats.empty());
 }
 
 TEST_CASE("class_ids allowlist drops other classes", "[threat]") {
@@ -76,7 +60,6 @@ TEST_CASE("class_ids allowlist drops other classes", "[threat]") {
     ThreatConfig cfg;
     cfg.class_ids = {1};
     auto frame = select_threats({fd(0, 2.f, 0.f), fd(1, 0.f, 2.f)}, pose, cfg);
-    REQUIRE(frame.has_threat);
     REQUIRE(frame.threats.size() == 1);
     REQUIRE(frame.threats[0].class_id == 1);
 }
@@ -92,7 +75,7 @@ TEST_CASE("detections inside min_range are ignored", "[threat]") {
     ThreatConfig cfg;
     cfg.min_range = 0.5f;
     auto frame = select_threats({fd(0, 0.1f, 0.f)}, pose, cfg);
-    REQUIRE_FALSE(frame.has_threat);
+    REQUIRE(frame.threats.empty());
 }
 
 TEST_CASE("detections beyond max_range are ignored", "[threat]") {
@@ -100,7 +83,7 @@ TEST_CASE("detections beyond max_range are ignored", "[threat]") {
     ThreatConfig cfg;
     cfg.max_range = 5.f;
     auto frame = select_threats({fd(0, 9.f, 0.f)}, pose, cfg);
-    REQUIRE_FALSE(frame.has_threat);
+    REQUIRE(frame.threats.empty());
 }
 
 TEST_CASE("merge_radius collapses multi-camera duplicates", "[threat]") {
@@ -109,7 +92,7 @@ TEST_CASE("merge_radius collapses multi-camera duplicates", "[threat]") {
     cfg.merge_radius = 0.4f;
     auto frame = select_threats({
         fd(0, 2.00f, 0.00f, 0.7f),
-        fd(0, 2.10f, 0.05f, 0.95f),  // same object, other camera, higher conf
+        fd(0, 2.10f, 0.05f, 0.95f),
     }, pose, cfg);
     REQUIRE(frame.threats.size() == 1);
     REQUIRE_THAT(frame.threats[0].confidence, WithinAbs(0.95f, 1e-6f));
@@ -121,12 +104,4 @@ TEST_CASE("merge_radius keeps two distinct robots", "[threat]") {
     cfg.merge_radius = 0.4f;
     auto frame = select_threats({fd(0, 2.f, 0.f), fd(0, 2.f, 2.f)}, pose, cfg);
     REQUIRE(frame.threats.size() == 2);
-}
-
-TEST_CASE("flee vector is unit length", "[threat]") {
-    RobotPose pose{1.f, 2.f, 0.4f};
-    auto frame = select_threats({fd(0, 3.f, 5.f)}, pose, {});
-    REQUIRE(frame.has_threat);
-    const float mag = std::hypot(frame.flee_x, frame.flee_y);
-    REQUIRE_THAT(mag, WithinAbs(1.f, 1e-4f));
 }

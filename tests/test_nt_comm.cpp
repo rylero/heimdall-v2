@@ -3,13 +3,14 @@
 #include <chrono>
 #include <optional>
 #include <thread>
+#include <vector>
 #include "comm/nt_comm.h"
 #include "threat/threat.h"
 #include <networktables/NetworkTableInstance.h>
 
 using Catch::Matchers::WithinAbs;
 
-TEST_CASE("NtComm publishes flee vector and reads pose", "[nt]") {
+TEST_CASE("NtComm publishes robot position arrays and reads pose", "[nt]") {
     auto server = nt::NetworkTableInstance::Create();
     server.StartServer("heimdall-nt-test.json", "127.0.0.1", 1735, 5812);
 
@@ -45,24 +46,28 @@ TEST_CASE("NtComm publishes flee vector and reads pose", "[nt]") {
     REQUIRE_THAT(got->pose.heading, WithinAbs(0.3f, 1e-3f));
 
     ThreatFrame frame;
-    frame.has_threat = true;
-    frame.flee_x = -1.f;
-    frame.flee_y = 0.f;
-    frame.nearest_range = 2.f;
     frame.healthy = true;
-    frame.threats.push_back({});
+    frame.threats.push_back(Threat{.field_x = 4.0f, .field_y = 1.5f});
+    frame.threats.push_back(Threat{.field_x = 2.0f, .field_y = -0.5f});
     comm.send_threat_frame(frame);
 
-    auto has = rio->GetBooleanTopic("hasThreat").Subscribe(false);
-    auto fx  = rio->GetDoubleTopic("fleeX").Subscribe(0.0);
+    auto xs = rio->GetDoubleArrayTopic("robots/x").Subscribe(std::vector<double>{});
+    auto ys = rio->GetDoubleArrayTopic("robots/y").Subscribe(std::vector<double>{});
     bool seen = false;
+    std::vector<double> got_x;
     for (int i = 0; i < 40; ++i) {
         server.Flush();
-        if (has.Get()) { seen = true; break; }
+        got_x = xs.Get();
+        if (got_x.size() == 2) { seen = true; break; }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     REQUIRE(seen);
-    REQUIRE_THAT(fx.Get(), WithinAbs(-1.0, 1e-3));
+    auto got_y = ys.Get();
+    REQUIRE(got_y.size() == 2);
+    REQUIRE_THAT(got_x[0], WithinAbs(4.0, 1e-3));
+    REQUIRE_THAT(got_y[0], WithinAbs(1.5, 1e-3));
+    REQUIRE_THAT(got_x[1], WithinAbs(2.0, 1e-3));
+    REQUIRE_THAT(got_y[1], WithinAbs(-0.5, 1e-3));
 
     server.StopServer();
 }
